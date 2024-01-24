@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import AppBar from './AppBar';
+import { Button } from "@/components/ui/button"
 
 function App() {
   console.log(window.ipcRenderer);
@@ -19,11 +20,21 @@ function App() {
   };
   const sendMessageToElectron = () => {
     if (window.Main) {
-      window.Main.sendMessage("Hello I'm from React World");
+      window.Main.sendMessage("Hello Bitbit");
+      setSent(true);
+  
+      // Trigger file download
+      const scriptPath = '/src/assets/scripts/testscript.ps1';
+      window.Main.execScript(scriptPath);
     } else {
       setFromMain('You are in a Browser, so no Electron functions are available');
     }
-    setSent(true);
+  };
+
+  const handleNavigate = () => {
+    const targetURL = 'http://localhost:8080/#/';
+    
+    window.Main.navigate(targetURL);
   };
 
   useEffect(() => {
@@ -33,42 +44,35 @@ function App() {
       });
   }, [fromMain, isSent]);
 
+  const [date, setDate] = React.useState<Date | undefined>(new Date())
+
   return (
     <div className="flex flex-col h-screen">
-      {window.Main && (
-        <div className="flex-none">
+      {/* <div className="flex-none">
           <AppBar />
-        </div>
-      )}
+      </div> */}
       <div className="flex-auto">
-        <div className=" flex flex-col justify-center items-center h-full bg-gray-800 space-y-4">
-          <h1 className="text-2xl text-gray-200">Vite + React + Typescript + Electron + Tailwind</h1>
-          <button
-            className="bg-yellow-400 py-2 px-4 rounded focus:outline-none shadow hover:bg-yellow-200"
-            onClick={handleToggle}
-          >
-            Click Me
-          </button>
+        <div className=" flex flex-col justify-center items-center h-full bg-yellow-50 space-y-4">
+          <Button onClick={handleNavigate}>Navigate</Button>
+          <Button onClick={handleToggle}>Button</Button>
           {isOpen && (
             <div className="flex flex-col space-y-4 items-center">
               <div className="flex space-x-3">
-                <h1 className="text-xl text-gray-50">💝 Welcome 💝, now send a message to the Main 📩📩</h1>
-                <button
+                <Button variant="destructive"
                   onClick={sendMessageToElectron}
-                  className=" bg-green-400 rounded px-4 py-0 focus:outline-none hover:bg-green-300"
                 >
-                  Send
-                </button>
+                  Reconnect Wifi
+                </Button>
               </div>
               {isSent && (
                 <div>
-                  <h4 className=" text-green-500">Message sent!!</h4>
+                  <h4 className=" text-green-500">Script ran</h4>
                 </div>
               )}
               {fromMain && (
                 <div>
                   {' '}
-                  <h4 className=" text-yellow-200">{fromMain}</h4>
+                  <h4 className=" text-red-500">{fromMain}</h4>
                 </div>
               )}
             </div>

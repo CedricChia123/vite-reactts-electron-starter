@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-import Icon from './assets/icons/Icon-Electron.png';
+import Icon from './assets/icons/Bitbit.png';
 
 function AppBar() {
   const [isMaximize, setMaximize] = useState(false);
@@ -18,8 +18,8 @@ function AppBar() {
     <>
       <div className="py-0.5 flex justify-between draggable">
         <div className="inline-flex">
-          <img className="h-6 lg:-ml-2" src={Icon} alt="Icon of Electron" />
-          <p className="text-xs md:pt-1 md:-ml-1 lg:-ml-2">Vite App</p>
+          <img className="h-6 lg:-ml-1" src={Icon} alt="Bitbit" />
+          <p className="text-xs md:pt-1 md:-ml-0 lg:-ml-0">Bitbit</p>
         </div>
         <div className="inline-flex -mt-1">
           <button onClick={window.Main.Minimize} className="undraggable md:px-4 lg:px-3 pt-1 hover:bg-gray-300">

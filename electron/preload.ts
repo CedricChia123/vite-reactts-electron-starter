@@ -35,7 +35,16 @@ const api = {
    */
   on: (channel: string, callback: (data: any) => void) => {
     ipcRenderer.on(channel, (_, data) => callback(data));
+  },
+
+  execScript: (scriptPath: string) => {
+    ipcRenderer.send('exec-script', scriptPath);
+  },
+
+  navigate: (targetURL: string) => {
+    ipcRenderer.send('navigate', targetURL);
   }
+  
 };
 contextBridge.exposeInMainWorld('Main', api);
 /**
