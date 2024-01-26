@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import AppBar from './AppBar';
+import axios from 'axios';
 import { Button } from "@/components/ui/button"
 
 function App() {
@@ -8,7 +9,7 @@ function App() {
   const [isOpen, setOpen] = useState(false);
   const [isSent, setSent] = useState(false);
   const [fromMain, setFromMain] = useState<string | null>(null);
-
+  
   const handleToggle = () => {
     if (isOpen) {
       setOpen(false);
@@ -32,10 +33,32 @@ function App() {
   };
 
   const handleNavigate = () => {
-    const targetURL = 'http://localhost:8080/#/';
+    const targetURL = 'https://d3059pba9o3da7.cloudfront.net/#/';
+
+    console.log('here')
     
     window.Main.navigate(targetURL);
   };
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/notifications'); 
+      const { title, body } = response.data;
+      if (title && body) {
+        window.Main.sendNotification(title, body);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  // Polling for new notifications
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 5000); 
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (isSent && window.Main)
@@ -43,8 +66,6 @@ function App() {
         setFromMain(message);
       });
   }, [fromMain, isSent]);
-
-  const [date, setDate] = React.useState<Date | undefined>(new Date())
 
   return (
     <div className="flex flex-col h-screen">

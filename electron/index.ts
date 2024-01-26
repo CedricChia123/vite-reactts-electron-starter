@@ -5,8 +5,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Packages
-import { BrowserWindow, app, ipcMain, IpcMainEvent, Menu } from 'electron';
+import { BrowserWindow, app, ipcMain, IpcMainEvent, Menu, Notification } from 'electron';
 import isDev from 'electron-is-dev';
+
+const Badge = require('electron-windows-badge');
 
 const height = 600;
 const width = 800;
@@ -28,6 +30,9 @@ function createWindow() {
       preload: join(__dirname, 'preload.js'),
     }
   });
+
+  const badgeOptions = {}
+  new Badge(window, badgeOptions);
 
   const menuTemplate = [
     {
@@ -204,4 +209,19 @@ ipcMain.on('exec-script', (event, scriptPath: string) => {
 
 ipcMain.on('navigate', (event, targetURL: string) => {
   window.loadURL(targetURL)
+});
+
+ipcMain.on('fire-notification-test', (event, notificationTitle, notificationBody) => {
+  const notification = new Notification({ title: notificationTitle, body: notificationBody });
+
+  notification.on('click', () => {
+      console.log('Notification clicked');
+      event.sender.send('notification-clicked');
+      if (window) {
+        if (window.isMinimized()) window.restore();
+        window.focus();
+      }
+  });
+
+  notification.show();
 });

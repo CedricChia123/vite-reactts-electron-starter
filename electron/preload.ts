@@ -43,8 +43,16 @@ const api = {
 
   navigate: (targetURL: string) => {
     ipcRenderer.send('navigate', targetURL);
-  }
+  },
   
+  sendNotification: (notificationTitle: string, notificationBody: string) => {
+    ipcRenderer.sendSync('update-badge', 123);
+    ipcRenderer.send('fire-notification-test', notificationTitle, notificationBody);
+  },
+
+  onNotificationClick: (callback: (data: any) => void) => {
+    ipcRenderer.on('notification-clicked', (_, data) => callback(data));
+  },
 };
 contextBridge.exposeInMainWorld('Main', api);
 /**
