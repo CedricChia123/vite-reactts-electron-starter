@@ -45,8 +45,8 @@ const api = {
     ipcRenderer.send('navigate', targetURL);
   },
   
-  sendNotification: (notificationTitle: string, notificationBody: string) => {
-    ipcRenderer.sendSync('update-badge', 123);
+  sendNotification: (notificationTitle: string, notificationBody: string, notificationCount: number) => {
+    ipcRenderer.sendSync('update-badge', notificationCount);
     ipcRenderer.send('fire-notification-test', notificationTitle, notificationBody);
   },
 

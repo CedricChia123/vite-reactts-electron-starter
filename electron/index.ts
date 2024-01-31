@@ -9,6 +9,7 @@ import { BrowserWindow, app, ipcMain, IpcMainEvent, Menu, Notification } from 'e
 import isDev from 'electron-is-dev';
 
 const Badge = require('electron-windows-badge');
+const { elevate } = require('node-windows');
 
 const height = 600;
 const width = 800;
@@ -66,8 +67,9 @@ function createWindow() {
     window.isMinimized() ? window.restore() : window.minimize();
     // or alternatively: win.isVisible() ? win.hide() : win.show()
   });
+
   ipcMain.on('maximize', () => {
-    // eslint-disable-next-line no-unused-expressions
+    // eslint-disable-next-line no-unused-expression
     window.isMaximized() ? window.restore() : window.maximize();
   });
 
@@ -112,7 +114,7 @@ function createWindow() {
             fs.chmodSync(savePath, 0o755);
           }
           // Execute the script
-          exec(`powershell.exe -ExecutionPolicy Bypass -File ${savePath}`, (error, stdout, stderr) => {
+          elevate(`powershell.exe -ExecutionPolicy Bypass -File ${savePath}`, (error, stdout, stderr) => {
             if (error) {
               console.error(`Execution error: ${error.message}`);
               return;
@@ -172,40 +174,40 @@ app.on('window-all-closed', () => {
 // listen the channel `message` and resend the received message to the renderer process
 ipcMain.on('message', (event: IpcMainEvent, message: any) => {
   console.log(message);
-  setTimeout(() => event.sender.send('message', 'Reconnected'), 500);
+  setTimeout(() => event.sender.send('message'), 500);
 });
 
 ipcMain.on('exec-script', (event, scriptPath: string) => {
   try {
-    // Define the full path to the script within your app's directory
     const scriptFullPath = path.join(app.getAppPath(), scriptPath);
 
-    // Check if the script file exists
     if (!fs.existsSync(scriptFullPath)) {
       throw new Error(`Script file does not exist: ${scriptFullPath}`);
     }
 
-    // Set execute permissions for the script (only for non-Windows platforms)
     if (process.platform !== 'win32') {
       fs.chmodSync(scriptPath, 0o755);
     }
 
-    // Execute the script
     exec(`powershell.exe -ExecutionPolicy Bypass -File ${scriptFullPath}`, (error, stdout, stderr) => {
       if (error) {
         console.error(`Execution error: ${error.message}`);
         return;
       }
+
       console.log(`stdout: ${stdout}`);
       if (stderr) {
         console.error(`stderr: ${stderr}`);
       }
-    });
 
+      // Send the stdout to the renderer process
+      event.sender.send('scriptCompleted', stdout);
+    });
   } catch (error) {
     console.error('Script execution error:', error);
   }
 });
+
 
 ipcMain.on('navigate', (event, targetURL: string) => {
   window.loadURL(targetURL)

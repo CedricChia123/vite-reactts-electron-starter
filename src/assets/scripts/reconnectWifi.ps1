@@ -1,4 +1,4 @@
-$headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+﻿$headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
 $headers.Add("Content-Type", "text/plain")
 
 $signal=(netsh wlan show interface) -match '^\s+Signal' -replace '^\s+Signal\s+:\s+',''
