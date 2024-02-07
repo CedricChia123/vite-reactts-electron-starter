@@ -1,15 +1,15 @@
 // Native
 import { join } from 'path';
-import { exec } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
 // Packages
 import { BrowserWindow, app, ipcMain, IpcMainEvent, Menu, Notification } from 'electron';
 import isDev from 'electron-is-dev';
+import { exec } from 'child_process';
 
 const Badge = require('electron-windows-badge');
-const { elevate } = require('node-windows');
+var elevate = require('windows-elevate');
 
 const height = 600;
 const width = 800;
@@ -58,8 +58,6 @@ function createWindow() {
   } else {
     window?.loadFile(url);
   }
-  // Open the DevTools.
-  // window.webContents.openDevTools();
 
   // For AppBar
   ipcMain.on('minimize', () => {
@@ -77,6 +75,15 @@ function createWindow() {
     window.close();
   });
 
+  window.webContents.on('before-input-event', (_, input) => {
+    if (input.type === 'keyDown' && input.key === 'F12') {
+      window.webContents.isDevToolsOpened()
+        ? window.webContents.closeDevTools()
+        : window.webContents.openDevTools({ mode: 'right' });
+    }
+  });
+
+  // Alca direct script download logic
   window.webContents.session.on('will-download', (event, item, webContents) => {
     const savePath = path.join(__dirname, '../src/assets/alcascripts', item.getFilename());
 
@@ -177,6 +184,8 @@ ipcMain.on('message', (event: IpcMainEvent, message: any) => {
   setTimeout(() => event.sender.send('message'), 500);
 });
 
+
+// Manual script downloading logic
 ipcMain.on('exec-script', (event, scriptPath: string) => {
   try {
     const scriptFullPath = path.join(app.getAppPath(), scriptPath);
@@ -189,7 +198,7 @@ ipcMain.on('exec-script', (event, scriptPath: string) => {
       fs.chmodSync(scriptPath, 0o755);
     }
 
-    exec(`powershell.exe -ExecutionPolicy Bypass -File ${scriptFullPath}`, (error, stdout, stderr) => {
+    elevate.exec("powershell.exe", ["-ExecutionPolicy", "Bypass", "-File", `${scriptFullPath}`], function(error: any, stdout: any, stderr: any) {
       if (error) {
         console.error(`Execution error: ${error.message}`);
         return;
@@ -200,19 +209,19 @@ ipcMain.on('exec-script', (event, scriptPath: string) => {
         console.error(`stderr: ${stderr}`);
       }
 
-      // Send the stdout to the renderer process
-      event.sender.send('scriptCompleted', stdout);
+      event.sender.send('scriptCompleted', scriptPath);
     });
   } catch (error) {
     console.error('Script execution error:', error);
   }
 });
 
-
+// Run Alca page
 ipcMain.on('navigate', (event, targetURL: string) => {
   window.loadURL(targetURL)
 });
 
+// Testing of notifications
 ipcMain.on('fire-notification-test', (event, notificationTitle, notificationBody) => {
   const notification = new Notification({ title: notificationTitle, body: notificationBody });
 
