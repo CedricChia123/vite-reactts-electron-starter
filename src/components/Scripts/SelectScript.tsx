@@ -20,14 +20,10 @@ export const SelectScript: React.FC<SelectScriptProps> = ({ onScriptSelect }) =>
 
   const items = [
     { value: "ClearCache", label: "Clear Cache" },
-    { value: "dummy", label: "Dummy" },
     { value: "reconnectWifi", label: "Reconnect Wifi" },
-    { value: "sample", label: "Sample" },
     { value: "Scanner", label: "Scanner" },
     { value: "ScannerV2", label: "Scanner V2" },
     { value: "tempCodeRunnerFile", label: "Temp Code Runner File" },
-    { value: "testing", label: "Testing 1" },
-    { value: "testing2", label: "Testing 2" }
   ]; 
 
   return (

@@ -58,7 +58,7 @@ function App() {
       setSent(true);
   
       // Trigger file download
-      const scriptPath = `/src/assets/scripts/${scriptName}.ps1`;
+      const scriptPath = `/src/assets/scripts/${scriptName}`;
       setLoading(1);
       window.Main.execScript(scriptPath);
     } else {

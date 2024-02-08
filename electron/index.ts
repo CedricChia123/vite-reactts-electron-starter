@@ -186,33 +186,58 @@ ipcMain.on('message', (event: IpcMainEvent, message: any) => {
 
 
 // Manual script downloading logic
-ipcMain.on('exec-script', (event, scriptPath: string) => {
+function requiresElevation(platform) {
+  return platform === 'win32';
+}
+
+ipcMain.on('exec-script', (event, scriptPath) => {
   try {
-    const scriptFullPath = path.join(app.getAppPath(), scriptPath);
+    // Determine the correct file extension based on the platform
+    const extension = requiresElevation(process.platform) ? '.ps1' : '.sh';
+    const scriptFullPath = path.join(app.getAppPath(), `${scriptPath}${extension}`);
 
     if (!fs.existsSync(scriptFullPath)) {
       throw new Error(`Script file does not exist: ${scriptFullPath}`);
     }
 
     if (process.platform !== 'win32') {
-      fs.chmodSync(scriptPath, 0o755);
+      fs.chmodSync(scriptFullPath, 0o755);
     }
 
-    elevate.exec("powershell.exe", ["-ExecutionPolicy", "Bypass", "-File", `${scriptFullPath}`], function(error: any, stdout: any, stderr: any) {
-      if (error) {
-        console.error(`Execution error: ${error.message}`);
-        return;
-      }
+    if (requiresElevation(process.platform)) {
+      const elevate = require('node-windows').elevate; 
+      elevate(`powershell.exe -ExecutionPolicy Bypass -File "${scriptFullPath}"`, function(error, stdout, stderr) {
+        if (error) {
+          console.error(`Execution error: ${error.message}`);
+          return;
+        }
 
-      console.log(`stdout: ${stdout}`);
-      if (stderr) {
-        console.error(`stderr: ${stderr}`);
-      }
+        console.log(`stdout: ${stdout}`);
+        if (stderr) {
+          console.error(`stderr: ${stderr}`);
+        }
 
-      event.sender.send('scriptCompleted', scriptPath);
-    });
+        event.sender.send('scriptCompleted', scriptPath);
+      });
+    } else {
+      // For macOS and Unix-like systems
+      const command = `sudo /bin/bash "${scriptFullPath}"`;
+      exec(command, (error, stdout, stderr) => {
+        if (error) {
+          console.error(`Execution error: ${error.message}`);
+          return;
+        }
+
+        console.log(`stdout: ${stdout}`);
+        if (stderr) {
+          console.error(`stderr: ${stderr}`);
+        }
+
+        event.sender.send('scriptCompleted', scriptPath);
+      });
+    }
   } catch (error) {
-    console.error('Script execution error:', error);
+    console.error('Script execution error:', error.message);
   }
 });
 
