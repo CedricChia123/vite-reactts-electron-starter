@@ -51,7 +51,7 @@ export function NotificationsForm() {
 
   return (
     <Card className="w-full md:w-[390px] h-full flex flex-col">
-      <CardContent className="flex-1 overflow-auto mt-4">
+      <CardContent className="overflow-auto mt-4">
         <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField

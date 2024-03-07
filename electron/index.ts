@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Packages
-import { BrowserWindow, app, ipcMain, IpcMainEvent, Menu, Notification } from 'electron';
+import { BrowserWindow, BrowserView, app, ipcMain, IpcMainEvent, Menu, Notification } from 'electron';
 import isDev from 'electron-is-dev';
 import { exec } from 'child_process';
 
@@ -31,6 +31,12 @@ function createWindow() {
       preload: join(__dirname, 'preload.js'),
     }
   });
+
+  const view = new BrowserView()
+  window.setBrowserView(view)
+  view.setBounds({ x: 325, y: 10, width: 400, height: 250 })
+  view.setAutoResize({width:true, height:true, vertical:true, horizontal: true})
+  view.webContents.loadURL('https:ntouch.nus.edu.sg')
 
   const badgeOptions = {}
   new Badge(window, badgeOptions);

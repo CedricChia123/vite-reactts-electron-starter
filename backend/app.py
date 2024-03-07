@@ -1,11 +1,13 @@
 # Simulates a message queue. Not the best production build
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from ibm_watson import AssistantV2
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 from dotenv import load_dotenv
 import requests
 from requests.auth import HTTPBasicAuth
 import os
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -16,26 +18,38 @@ load_dotenv(dotenv_path=env_path)
 notifications = []
 notifications_list = []
 
-def send_message_to_external_endpoint(message):
-    url = os.getenv("ENDPOINT_URL")
-    headers = {
-        'Content-Type': 'application/json',
-    }
-    auth = HTTPBasicAuth('apikey', os.getenv("API_KEY"))
-    payload = {
-        "input": {
+authenticator = IAMAuthenticator(os.getenv("API_KEY"))
+assistant = AssistantV2(
+    version='2023-06-15',
+    authenticator = authenticator
+)
+
+assistant.set_service_url(os.getenv("SERVICE_URL"))
+
+response = assistant.create_session(
+    assistant_id=os.getenv("ASSISTANT_ID")
+).get_result()
+
+session_id = response["session_id"]
+
+global_state = ''
+
+def send_message_to_external_endpoint(input_assistant, input_session_id, message):
+    test_input = {
             "message_type": "text",
             "text": message,
             "options": {
                 "return_context": True
             }
-        },
-        "context": {
-            "global": {
+    }
+    test_context = {
+        "global": {
                 "system": {
                     "session_start_time": "2024-02-13T07:22:10.847Z",
                     "turn_count": 2,
                     "timezone": "Asia/Singapore",
+                    "state": global_state,
+                    "user_id": input_session_id
                 },
             },
             "skills": {
@@ -55,13 +69,52 @@ def send_message_to_external_endpoint(message):
                     "system": {}
                 }
             }
-        }
     }
 
+    # payload = {
+    #     "input": {
+    #         "message_type": "text",
+    #         "text": message,
+    #         "options": {
+    #             "return_context": True
+    #         }
+    #     },
+    #     "context": {
+    #         "global": {
+    #             "system": {
+    #                 "session_start_time": "2024-02-13T07:22:10.847Z",
+    #                 "turn_count": 2,
+    #                 "timezone": "Asia/Singapore",
+    #             },
+    #         },
+    #         "skills": {
+    #             "main skill": {
+    #                 "user_defined": {
+    #                     "user_group": "staff"
+    #                 },
+    #                 "system": {}
+    #             },
+    #             "actions skill": {
+    #                 "action_variables": {},
+    #                 "skill_variables": {
+    #                     "user_group": "staff",
+    #                     "minimumconfidence": 10,
+    #                     "query_text": message
+    #                 },
+    #                 "system": {}
+    #             }
+    #         }
+    #     }
+    # }
+
     try:
-        response = requests.post(url, json=payload, headers=headers, auth=auth)
-        response.raise_for_status()  
-        return response.json()  
+        response = input_assistant.message(
+            assistant_id=os.getenv("ASSISTANT_ID"),
+            session_id=input_session_id,
+            input=test_input,
+            context = test_context
+        ).get_result() 
+        return response  
     except requests.RequestException as e:
         print(f"Request failed: {e}")
         return None
@@ -101,13 +154,17 @@ def send_message():
     print(f"Sending message: {message}")
 
     try:
-        response = send_message_to_external_endpoint(message)
+        response = send_message_to_external_endpoint(assistant, session_id, message)
         if response is None:
             raise ValueError("Failed to get a response from the external endpoint")
 
         print(f"Response from external endpoint: {response}")
 
         generic_responses = response.get('output', []).get('generic', [])
+
+        global_state = response.get('context').get('global').get('system').get('state')
+
+        print(global_state)
 
         return jsonify(generic_responses), 200
 

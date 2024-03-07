@@ -147,12 +147,12 @@ function App() {
       {/* Main content to the right */}
       <div className="flex-1 flex flex-col">
         <div className="flex-auto flex justify-center items-center bg-yellow-50">
-          <div className="flex flex-col items-center space-y-4"> 
-            <Button onClick={handleNavigate}>ALCA page</Button>
+          <div className="flex flex-col items-center space-y-4 mt-64"> 
+            {/* <Button onClick={handleNavigate}>ALCA page</Button> */}
             <Button onClick={handleToggle}>Scripts</Button>
           {isOpen && (
             <div className="flex flex-col space-y-4 items-center mt-4"> 
-              <div className="flex space-x-3">
+              <div className="flex space-x-3 mt-8">
                 <SelectScript onScriptSelect={handleScriptSelect} />
                 <Button onClick={() => runScript(selectedScript)}>
                   Test script
