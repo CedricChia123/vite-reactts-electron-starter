@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext } from 'react';
 import axios from 'axios';
-import { Button } from "@/components/ui/button"
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { SelectScript } from './components/Scripts/SelectScript';
 import NotificationContext from './context/NotificationContext';
@@ -20,6 +20,7 @@ function App() {
   const { notificationCount, incrementNotificationCount } = useContext(NotificationContext);
   const [result, setResult] = useState('');
   const [isPushNotificationsEnabled, setIsPushNotificationsEnabled] = useState(false);
+  const [isButtonDisabled, setButtonDisabled] = useState(false);
 
   // Listen for changes in main desktop
   useEffect(() => {
@@ -32,7 +33,7 @@ function App() {
   const handleScriptSelect = (script: string) => {
     setSelectedScript(script);
   };
-  
+
   const handleToggle = () => {
     if (isOpen) {
       setOpen(false);
@@ -54,9 +55,15 @@ function App() {
   // Run scripts logic
   const runScript = (scriptName: string) => {
     if (window.Main) {
-      window.Main.sendMessage("Received");
+      window.Main.sendMessage('Received');
       setSent(true);
-  
+
+      // Disable the button
+      setButtonDisabled(true);
+
+      // Re-enable the button after 10 seconds
+      setTimeout(() => setButtonDisabled(false), 10000);
+
       // Trigger file download
       const scriptPath = `/src/assets/scripts/${scriptName}`;
       setLoading(1);
@@ -68,20 +75,20 @@ function App() {
 
   useEffect(() => {
     let interval: NodeJS.Timeout | undefined;
-  
+
     if (loading > 0 && loading < 100) {
       interval = setInterval(() => {
         setLoading((prevLoading) => {
-          const nextLoading = prevLoading + 5; 
+          const nextLoading = prevLoading + 5;
           return nextLoading >= 95 ? 95 : nextLoading;
         });
-      }, 200); 
+      }, 200);
     }
-  
+
     if (loading === 100) {
       clearInterval(interval);
     }
-  
+
     return () => clearInterval(interval);
   }, [loading]);
 
@@ -89,7 +96,8 @@ function App() {
     if (window.Main) {
       window.Main.on('scriptCompleted', (stdout) => {
         setLoading(100);
-        setResult(stdout); 
+        setResult(stdout);
+        console.log(stdout);
       });
     }
   }, []);
@@ -99,7 +107,7 @@ function App() {
     if (isSent) {
       timer = setTimeout(() => {
         setSent(false);
-      }, 5000); 
+      }, 5000);
     }
     return () => {
       if (timer) clearTimeout(timer);
@@ -108,7 +116,7 @@ function App() {
 
   // Short polling for notifications
   const fetchNotifications = async () => {
-    try {      
+    try {
       const response = await axios.get('http://localhost:5000/api/notifications');
       const newNotification = response.data;
 
@@ -116,7 +124,7 @@ function App() {
         incrementNotificationCount((newCount) => {
           const { title, body, date } = newNotification;
           window.Main.sendMessage(newCount.toString());
-          window.Main.sendNotification(title, body, newCount, isPushNotificationsEnabled);
+          window.Main.sendNotification(title, newCount, isPushNotificationsEnabled);
         });
       }
     } catch (error) {
@@ -127,7 +135,7 @@ function App() {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchNotifications();
-    }, 6000); 
+    }, 6000);
     return () => clearInterval(interval);
   }, [isPushNotificationsEnabled, Notifications]);
 
@@ -136,54 +144,55 @@ function App() {
     const targetURL = 'https://d3059pba9o3da7.cloudfront.net/#/';
     window.Main.navigate(targetURL);
   };
-  
+
   return (
     <div className="flex flex-col md:flex-row h-screen">
-      {/* Notifications to the left */}
-      <div className="w-full md:w-[398px] bg-yellow-50 overflow-auto">
+      <div className="w-full md:w-[398px] bg-yellow-50 overflow-auto md:h-screen">
         <Notifications isPushEnabled={isPushNotificationsEnabled} onPushChange={setIsPushNotificationsEnabled} />
       </div>
-  
-      {/* Main content to the right */}
-      <div className="flex-1 flex flex-col">
-        <div className="flex-auto flex justify-center items-center bg-yellow-50">
-          <div className="flex flex-col items-center space-y-4 mt-64"> 
-            {/* <Button onClick={handleNavigate}>ALCA page</Button> */}
+
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-auto flex justify-center items-center bg-yellow-50 overflow-hidden">
+          <div className="flex flex-col items-center space-y-4 overflow-auto p-4">
             <Button onClick={handleToggle}>Scripts</Button>
-          {isOpen && (
-            <div className="flex flex-col space-y-4 items-center mt-4"> 
-              <div className="flex space-x-3 mt-8">
-                <SelectScript onScriptSelect={handleScriptSelect} />
-                <Button onClick={() => runScript(selectedScript)}>
-                  Test script
-                </Button>
-              </div>
-              <Progress value={loading} className="w-72" />
-              {result && (
-                <div>
-                  <h4 className="text-green-500">Script ran</h4>
-                  <div className="result-output">
-                    <h4>Script Output:</h4>
-                    <pre>{result}</pre>
+            {isOpen && (
+              <div className="flex flex-col space-y-4 items-center mt-4 overflow-hidden">
+                <div className="flex space-x-3">
+                  <SelectScript onScriptSelect={handleScriptSelect} />
+                  <Button onClick={() => runScript(selectedScript)} disabled={isButtonDisabled}>
+                    Test script
+                  </Button>
+                </div>
+                <Progress value={loading} className="w-72" />
+                {result && (
+                  <div className="overflow-auto max-h-[50vh] max-w-[30]">
+                    <h4 className="text-green-500">Script ran</h4>
+                    <div className="result-output">
+                      <h4>Script Output:</h4>
+                      <pre
+                        style={{
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'keep-all'
+                        }}
+                      >
+                        {result}
+                      </pre>
+                    </div>
                   </div>
-                </div>
-              )}
-              {fromMain && (
-                <div>
-                  <h4 className="text-red-500">{fromMain}</h4>
-                </div>
-              )}
-            </div>
-          )}
-          <Button onClick={handleToggleNotifications}>Notifications Console</Button>
-          {isOpenNotifs && (<NotificationsForm/>)}
-          <SearchBar/>
+                )}
+                {fromMain && (
+                  <div className="overflow-auto max-h-[50vh]">
+                    <h4 className="text-red-500">{fromMain}</h4>
+                  </div>
+                )}
+              </div>
+            )}
+            <SearchBar />
           </div>
         </div>
       </div>
     </div>
   );
-  
 }
 
 export default App;

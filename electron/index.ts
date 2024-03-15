@@ -4,17 +4,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Packages
-import { BrowserWindow, BrowserView, app, ipcMain, IpcMainEvent, Menu, Notification } from 'electron';
+import { BrowserWindow, BrowserView, app, ipcMain, IpcMainEvent, Menu, Notification, screen } from 'electron';
 import isDev from 'electron-is-dev';
-import { exec } from 'child_process';
 
 const Badge = require('electron-windows-badge');
-var elevate = require('windows-elevate');
+const os = require('os');
 
 const height = 600;
 const width = 800;
 
-let window : BrowserWindow;
+let window: BrowserWindow;
 
 function createWindow() {
   // Create the browser window.
@@ -22,23 +21,22 @@ function createWindow() {
     width,
     height,
     //  change to false to use AppBar
-    frame: true,
-    icon : path.join(__dirname, '../src/assets/icons/Bitbit.png'),
+    icon: path.join(__dirname, '../src/assets/icons/Bitbit.png'),
     show: true,
     resizable: true,
     fullscreenable: true,
     webPreferences: {
-      preload: join(__dirname, 'preload.js'),
+      preload: join(__dirname, 'preload.js')
     }
   });
 
-  const view = new BrowserView()
-  window.setBrowserView(view)
-  view.setBounds({ x: 325, y: 10, width: 400, height: 250 })
-  view.setAutoResize({width:true, height:true, vertical:true, horizontal: true})
-  view.webContents.loadURL('https:ntouch.nus.edu.sg')
+  // const view = new BrowserView()
+  // window.setBrowserView(view)
+  // view.setBounds({ x: 325, y: 10, width: 400, height: 250 })
+  // view.setAutoResize({width:true, height:true, vertical:true, horizontal: true})
+  // view.webContents.loadURL('https:ntouch.nus.edu.sg')
 
-  const badgeOptions = {}
+  const badgeOptions = {};
   new Badge(window, badgeOptions);
 
   const menuTemplate = [
@@ -48,8 +46,8 @@ function createWindow() {
         if (window.webContents.canGoBack()) {
           window.webContents.goBack();
         }
-      },
-    },
+      }
+    }
   ];
 
   const menu = Menu.buildFromTemplate(menuTemplate);
@@ -94,9 +92,9 @@ function createWindow() {
     const savePath = path.join(__dirname, '../src/assets/alcascripts', item.getFilename());
 
     console.log(`File will be downloaded to: ${savePath}`);
-    
+
     item.setSavePath(savePath);
-  
+
     item.on('updated', (updateEvent, state) => {
       if (state === 'interrupted') {
         console.log('Download is interrupted but can be resumed');
@@ -108,14 +106,14 @@ function createWindow() {
         }
       }
     });
-  
+
     item.once('done', (doneEvent, state) => {
       if (state === 'completed') {
         const browserWindow = BrowserWindow.fromWebContents(webContents);
         if (browserWindow) {
-            browserWindow.close();
+          browserWindow.close();
         } else {
-            console.error('No browser window associated with the webContents');
+          console.error('No browser window associated with the webContents');
         }
         console.log('Download successfully');
         try {
@@ -136,7 +134,7 @@ function createWindow() {
             if (stderr) {
               console.error(`stderr: ${stderr}`);
             }
-    
+
             // Script executed, now remove the script file
             fs.unlink(savePath, (unlinkError) => {
               if (unlinkError) {
@@ -146,7 +144,6 @@ function createWindow() {
               }
             });
           });
-      
         } catch (error) {
           console.error('Script execution error:', error);
         }
@@ -156,9 +153,7 @@ function createWindow() {
         console.log(`Download failed: ${state}`);
       }
     });
-    
   });
-
 }
 
 // This method will be called when Electron has finished
@@ -190,80 +185,187 @@ ipcMain.on('message', (event: IpcMainEvent, message: any) => {
   setTimeout(() => event.sender.send('message'), 500);
 });
 
-
 // Manual script downloading logic
 function requiresElevation(platform) {
   return platform === 'win32';
 }
 
-ipcMain.on('exec-script', (event, scriptPath) => {
-  try {
-    // Determine the correct file extension based on the platform
-    const extension = requiresElevation(process.platform) ? '.ps1' : '.sh';
-    const scriptFullPath = path.join(app.getAppPath(), `${scriptPath}${extension}`);
+const fsPromises = require('fs').promises;
+const elevate = require('node-windows').elevate;
 
-    if (!fs.existsSync(scriptFullPath)) {
+ipcMain.on('exec-script', async (event, scriptPath) => {
+  const extension = '.ps1';
+  const scriptFullPath = path.join(app.getAppPath(), `${scriptPath}${extension}`);
+  const outputFilePath = path.join(app.getAppPath(), '/src/assets/scripts/script-output.txt');
+
+  try {
+    // Check if the script file exists
+    if (
+      !(await fsPromises
+        .access(scriptFullPath)
+        .then(() => true)
+        .catch(() => false))
+    ) {
       throw new Error(`Script file does not exist: ${scriptFullPath}`);
     }
 
-    if (process.platform !== 'win32') {
-      fs.chmodSync(scriptFullPath, 0o755);
-    }
-
-    if (requiresElevation(process.platform)) {
-      const elevate = require('node-windows').elevate; 
-      elevate(`powershell.exe -ExecutionPolicy Bypass -File "${scriptFullPath}"`, function(error, stdout, stderr) {
-        if (error) {
-          console.error(`Execution error: ${error.message}`);
-          return;
+    // Execute the PowerShell script with elevation
+    await new Promise<void>((resolve, reject) => {
+      elevate(
+        `powershell.exe -Command "& {powershell.exe -ExecutionPolicy Bypass -File '${scriptFullPath}' > '${outputFilePath}'}"`,
+        function (error) {
+          if (error) {
+            console.error(`Execution error: ${error.message}`);
+            reject(error);
+            return;
+          }
+          resolve();
         }
+      );
+    });
 
-        console.log(`stdout: ${stdout}`);
-        if (stderr) {
-          console.error(`stderr: ${stderr}`);
-        }
+    await new Promise((resolve) => setTimeout(resolve, 10000));
 
-        event.sender.send('scriptCompleted', scriptPath);
-      });
-    } else {
-      // For macOS and Unix-like systems
-      const command = `sudo /bin/bash "${scriptFullPath}"`;
-      exec(command, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Execution error: ${error.message}`);
-          return;
-        }
+    const data = await fsPromises.readFile(outputFilePath, 'utf8');
+    console.log(`stdout: ${data}`);
+    event.sender.send('scriptCompleted', data);
 
-        console.log(`stdout: ${stdout}`);
-        if (stderr) {
-          console.error(`stderr: ${stderr}`);
-        }
-
-        event.sender.send('scriptCompleted', scriptPath);
-      });
-    }
+    await fsPromises.unlink(outputFilePath);
+    console.log('Output file removed successfully.');
   } catch (error) {
-    console.error('Script execution error:', error.message);
+    console.error('Error in script execution or file handling:', error.message);
   }
+});
+
+const imgSrc = imageToBase64(path.join(__dirname, '../src/assets/icons/Bitbit.png'));
+
+function imageToBase64(imgPath) {
+  // Ensure the path is absolute
+  const absolutePath = path.resolve(imgPath);
+  // Read the file into a buffer
+  const file = fs.readFileSync(absolutePath);
+  // Convert the buffer to a base64 string
+  return `data:image/png;base64,${file.toString('base64')}`;
+}
+
+function createCustomNotification(title, message) {
+  app.whenReady().then(() => {
+    // Get the size of the primary display.
+    const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+
+    let notificationWindow = new BrowserWindow({
+      width: 400,
+      height: 100,
+      x: width - 400,
+      y: height - 100,
+      frame: false,
+      skipTaskbar: true,
+      alwaysOnTop: true,
+      transparent: true,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false
+      }
+    });
+
+    // Custom CSS for styling + animation
+    const customStyle = `
+      <style>
+        body {
+          margin: 0;
+          padding: 10px;
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background-color: #ADD8E6;
+          color: #000000;
+          display: flex;
+          flex-direction: row; 
+          border-radius: 10px;
+        }
+        .notification {
+          flex-grow: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: start;
+        }
+        .title {
+          font-weight: bold;
+        }
+        .message {
+          margin: 5px 0; 
+        }
+        .close-button {
+          cursor: pointer;
+          padding: 5px;
+          margin-left: auto; 
+        }
+        .logo {
+          margin-right: 10px;
+        }
+      </style>
+    `;
+
+    const notificationHTML = `
+      <html>
+        <head>${customStyle}</head>
+        <body>
+          <div class="logo">
+            <img src=${imgSrc} height="50">
+          </div>
+          <div class="notification">
+            <div class="title">${title}</div>
+            <div class="message">${message}</div>
+          </div>
+          <div class="close-button" onclick="closeNotification()">
+            X
+          </div>
+          <script>
+            const { ipcRenderer } = require('electron');
+            function closeNotification() {
+              ipcRenderer.send('close-notification');
+            }
+          </script>
+        </body>
+      </html>
+    `;
+
+    notificationWindow.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(notificationHTML)}`);
+
+    ipcMain.on('close-notification', () => {
+      if (!notificationWindow.isDestroyed()) {
+        notificationWindow.close();
+      }
+    });
+
+    // Close the notification window after a delay
+    setTimeout(() => {
+      if (!notificationWindow.isDestroyed()) {
+        notificationWindow.close();
+      }
+    }, 20000);
+  });
+}
+
+// Listen for click events from the notification window
+ipcMain.on('notification-clicked', () => {
+  console.log('Custom Notification clicked');
+  if (window && window.isMinimized()) window.restore();
+  window.focus();
+});
+
+// Listen for click events from the notification window
+ipcMain.on('notification-clicked', () => {
+  console.log('Custom Notification clicked');
+  if (window && window.isMinimized()) window.restore();
+  window.focus();
+});
+
+// Adjusted fire-notification-test event without native Notification
+ipcMain.on('fire-notification-test', (event, notificationTitle) => {
+  // Create a custom notification with the title and a custom message
+  createCustomNotification(notificationTitle, 'This is a custom notification.');
 });
 
 // Run Alca page
 ipcMain.on('navigate', (event, targetURL: string) => {
-  window.loadURL(targetURL)
-});
-
-// Testing of notifications
-ipcMain.on('fire-notification-test', (event, notificationTitle, notificationBody) => {
-  const notification = new Notification({ title: notificationTitle, body: notificationBody });
-
-  notification.on('click', () => {
-      console.log('Notification clicked');
-      event.sender.send('notification-clicked');
-      if (window) {
-        if (window.isMinimized()) window.restore();
-        window.focus();
-      }
-  });
-
-  notification.show();
+  window.loadURL(targetURL);
 });

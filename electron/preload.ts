@@ -44,11 +44,11 @@ const api = {
   navigate: (targetURL: string) => {
     ipcRenderer.send('navigate', targetURL);
   },
-  
-  sendNotification: (notificationTitle: string, notificationBody: string, notificationCount: number, pushNotifications: boolean) => {
+
+  sendNotification: (notificationTitle: string, notificationCount: number, pushNotifications: boolean) => {
     ipcRenderer.sendSync('update-badge', notificationCount);
     if (pushNotifications) {
-      ipcRenderer.send('fire-notification-test', notificationTitle, notificationBody);
+      ipcRenderer.send('fire-notification-test', notificationTitle);
     }
   },
 
@@ -58,7 +58,7 @@ const api = {
 
   onNotificationClick: (callback: (data: any) => void) => {
     ipcRenderer.on('notification-clicked', (_, data) => callback(data));
-  },
+  }
 };
 contextBridge.exposeInMainWorld('Main', api);
 /**
