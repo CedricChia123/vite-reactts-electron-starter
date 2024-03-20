@@ -7,9 +7,12 @@ import NotificationContext from './context/NotificationContext';
 import Notifications from './components/Notifications/Notifications';
 import NotificationsForm from './components/Notifications/NotificationsForm';
 import SearchBar from './components/Alca/SearchBar';
+import io from 'socket.io-client';
+import { useQueryClient } from '@tanstack/react-query';
 
 function App() {
   console.log(window.ipcRenderer);
+  const queryClient = useQueryClient();
 
   const [isOpen, setOpen] = useState(false);
   const [isOpenNotifs, setOpenNotifs] = useState(false);
@@ -114,30 +117,34 @@ function App() {
     };
   }, [isSent]);
 
-  // Short polling for notifications
-  const fetchNotifications = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/api/notifications');
-      const newNotification = response.data;
-
-      if (newNotification) {
-        incrementNotificationCount((newCount) => {
-          const { title, body, date } = newNotification;
-          window.Main.sendMessage(newCount.toString());
-          window.Main.sendNotification(title, newCount, isPushNotificationsEnabled);
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    }
-  };
-
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchNotifications();
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [isPushNotificationsEnabled, Notifications]);
+    // Connect to the Flask-SocketIO server
+    const socket = io('http://dev-super-app-env.eba-gbce2swp.ap-southeast-1.elasticbeanstalk.com');
+
+    socket.on('connect', () => {
+      console.log('Connected to Flask-SocketIO server');
+    });
+
+    // Listen for 'new_notification' events from the server
+    socket.on('new_notification', (data: any) => {
+      window.Main.sendMessage(data);
+      incrementNotificationCount((newCount) => {
+        const { title, body, date } = data.message; // Assuming the message is JSON stringified
+        window.Main.sendMessage(newCount.toString());
+        window.Main.sendNotification(title, newCount, isPushNotificationsEnabled);
+        // Here, you can update your state or context with the new notification details as needed
+        queryClient.invalidateQueries({
+          queryKey: ['notificationsList']
+        });
+      });
+    });
+
+    return () => {
+      socket.off('connect');
+      socket.off('new_notification');
+      socket.close();
+    };
+  }, [incrementNotificationCount, isPushNotificationsEnabled, queryClient]);
 
   // Handle Alca Logic
   const handleNavigate = () => {

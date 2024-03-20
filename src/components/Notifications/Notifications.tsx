@@ -13,7 +13,10 @@ export const Notifications: React.FC<{ isPushEnabled: boolean; onPushChange: (is
 }) => {
   const { notificationCount, resetNotificationCount } = useContext(NotificationContext);
   const fetchNotificationsList = async () => {
-    return axios.get('http://localhost:5000/api/notificationslist').then((res) => res.data);
+    console.log('Fetching notifications list');
+    return axios
+      .get('http://dev-super-app-env.eba-gbce2swp.ap-southeast-1.elasticbeanstalk.com/api/notificationslist/recent')
+      .then((res) => res.data);
   };
 
   const {
@@ -25,12 +28,12 @@ export const Notifications: React.FC<{ isPushEnabled: boolean; onPushChange: (is
     queryFn: fetchNotificationsList
   });
 
-  const [readNotifications, setReadNotifications] = useState<Set<number>>(new Set());
+  const [readNotifications, setReadNotifications] = useState<Set<string>>(new Set());
 
   const markAllAsRead = () => {
     if (Array.isArray(notifications)) {
-      const allIndexes = notifications.map((_, index) => index);
-      setReadNotifications(new Set(allIndexes));
+      const allIds = notifications.map((notification) => notification.notification_id);
+      setReadNotifications(new Set(allIds));
     }
     resetNotificationCount();
     window.Main.resetNotification();
@@ -57,22 +60,24 @@ export const Notifications: React.FC<{ isPushEnabled: boolean; onPushChange: (is
           <Switch checked={isPushEnabled} onCheckedChange={onPushChange} />
         </div>
         {Array.isArray(notifications) &&
-          [...notifications].reverse().map((notification, index) => (
-            <div key={index} className="mb-4 flex items-start pb-4 last:mb-0 last:pb-0">
-              {!readNotifications.has(notifications.length - 1 - index) && (
-                <span className={`flex h-2 w-2 translate-y-1 ${'rounded-full bg-sky-500'}`} />
-              )}
-              <div className="flex-1 space-y-1 ml-2">
-                <p className="text-sm font-medium leading-none overflow-x-auto">{notification.title}</p>
-                <p className="text-sm font-medium leading-none">Date: {notification.date}</p>
-                <div
-                  className="text-sm text-muted-foreground"
-                  dangerouslySetInnerHTML={{ __html: notification.body }}
-                ></div>
-                <hr></hr>
+          [...notifications]
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .map((notification) => (
+              <div key={notification.notification_id} className="mb-4 flex items-start pb-4 last:mb-0 last:pb-0">
+                {!readNotifications.has(notification.notification_id) && (
+                  <span className={`flex h-2 w-2 translate-y-1 rounded-full bg-sky-500`} />
+                )}
+                <div className="flex-1 space-y-1 ml-2">
+                  <p className="text-sm font-medium leading-none overflow-x-auto">{notification.title}</p>
+                  <p className="text-sm font-medium leading-none">Date: {notification.date}</p>
+                  <div
+                    className="text-sm text-muted-foreground"
+                    dangerouslySetInnerHTML={{ __html: notification.body }}
+                  ></div>
+                  <hr></hr>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
       </CardContent>
       <CardFooter className="mt-auto">
         <Button className="w-full" onClick={markAllAsRead}>
