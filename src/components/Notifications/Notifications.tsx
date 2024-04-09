@@ -47,7 +47,13 @@ export const Notifications: React.FC<{ isPushEnabled: boolean; onPushChange: (is
       <CardHeader>
         <CardTitle>Notifications</CardTitle>
         <CardDescription>
-          You have {Array.isArray(notifications) ? notifications.length - readNotifications.size : '0'} unread messages.
+          You have{' '}
+          {Array.isArray(notifications)
+            ? notifications.length - readNotifications.size >= 0
+              ? notifications.length - readNotifications.size
+              : '0'
+            : '0'}{' '}
+          unread messages.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 overflow-auto">

@@ -226,7 +226,7 @@ ipcMain.on('exec-script', async (event, scriptPath) => {
 
     await new Promise((resolve) => setTimeout(resolve, 10000));
 
-    const data = await fsPromises.readFile(outputFilePath, 'utf8');
+    const data = await fsPromises.readFile(outputFilePath, 'UTF-16LE');
     console.log(`stdout: ${data}`);
     event.sender.send('scriptCompleted', data);
 

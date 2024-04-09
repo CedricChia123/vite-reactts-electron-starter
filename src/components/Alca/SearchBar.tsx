@@ -1,24 +1,27 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import axios from 'axios'; // Make sure to import Axios
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 export default function SearchBar() {
-    const [input, setInput] = useState("");
-    const [responses, setResponses] = useState([]);
+  const [input, setInput] = useState('');
+  const [responses, setResponses] = useState([]);
 
-    const handleSearch = async () => {
-      try {
-        // Use Axios for the POST request
-        const response = await axios.post("http://localhost:5000/api/message", {
-          message: input,
-        });
-        // Axios automatically parses the JSON, so you can directly access `data`
-        setResponses(response.data);
-      } catch (error) {
-        console.error("There was a problem with the Axios operation:", error);
-      }
-    };
+  const handleSearch = async () => {
+    try {
+      // Use Axios for the POST request
+      const response = await axios.post(
+        'http://dev-super-app-env.eba-gbce2swp.ap-southeast-1.elasticbeanstalk.com/api/message',
+        {
+          message: input
+        }
+      );
+      // Axios automatically parses the JSON, so you can directly access `data`
+      setResponses(response.data);
+    } catch (error) {
+      console.error('There was a problem with the Axios operation:', error);
+    }
+  };
 
   return (
     <div className="flex flex-col items-center space-x-2">
@@ -32,7 +35,7 @@ export default function SearchBar() {
         />
         <Button
           className="absolute top-1/2 right-2 transform -translate-y-1/2"
-          style={{ padding: "8px" }}
+          style={{ padding: '8px' }}
           onClick={handleSearch}
         >
           <svg
